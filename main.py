@@ -1,8 +1,9 @@
 
 import asyncio
+import html
 from datetime import datetime
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.types import Message
 from aiogram.filters import CommandStart
@@ -35,11 +36,11 @@ def format_message(message: dict) -> str:
     lines = [
         "📨 <b>Сообщение</b>",
         f"├  <b>Message ID:</b> {message['message_id']}",
-        f"├  <b>Дата:</b> {dt} (UTC)",
+        f"├  <b>Дата:</b> {dt}",
         "",
         f"👤 <b>Отправитель:</b>",
         f"├ <b>ID:</b> <code>{from_user.get('id')}</code>",
-        f"├ <b>Имя:</b> {from_user.get('first_name', '')} {from_user.get('last_name', '')}",
+        f"├ <b>Имя:</b> {html.escape(from_user.get('first_name', ''))} {html.escape(from_user.get('last_name', ''))}",
         f"├ <b>Username:</b> @{from_user.get('username')}" if from_user.get('username') else "├ <b>Username:</b> —",
         f"├ <b>Премиум:</b> {is_premium}"
     ]
@@ -48,7 +49,7 @@ def format_message(message: dict) -> str:
         lines.append("")
         lines.append("🔁 <b>Переслано от:</b>")
         lines.append(f"├ <b>ID:</b> <code>{forward_from.get('id')}</code>"),
-        lines.append(f"├ <b>Имя:</b> {forward_from.get('first_name', '')}")
+        lines.append(f"├ <b>Имя:</b> {html.escape(forward_from.get('first_name', ''))}")
 
         if forward_from.get('username'):
             lines.append(f"├ <b>Username:</b> @{forward_from.get('username')}")
@@ -64,7 +65,8 @@ def format_message(message: dict) -> str:
         if origin_type == "user":
             sender = forward_origin.get("sender_user", {})
             lines.append(f"├ <b>ID:</b> <code>{sender.get('id')}</code>")
-            lines.append(f"├ <b>Имя:</b> {sender.get('first_name', '')} {sender.get('last_name', '')}")
+            lines.append(f"├ <b>Имя:</b> {html.escape(sender.get('first_name', ''))} "
+                         f"{html.escape(sender.get('last_name', ''))}")
 
             if sender.get('username'):
                 lines.append(f"├ <b>Username:</b> @{sender.get('username')}")
@@ -89,12 +91,29 @@ def format_message(message: dict) -> str:
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
-    await message.answer(f"Привет, {message.from_user.full_name}!\n\n"
-                         f"Твой Telegram ID: <code>{message.from_user.id}</code>", parse_mode=ParseMode.HTML)
+    with open('users.txt') as f:
+        users = f.read()[:-1].split('\n')
+
+    if str(message.chat.id) not in users:
+        with open('users.txt', 'a') as f:
+            f.write(f"{message.chat.id}\n")
+
+    text = (f"Привет, <b>{html.escape(message.from_user.full_name)}</b>!\n\n"
+            f"Твой Telegram ID: <code>{message.from_user.id}</code>")
+
+    if message.chat.id == 1914011859:
+        text += f'\n\n👥 Количество пользователей: <b>{len(users)}</b>'
+
+    await message.answer(text, parse_mode=ParseMode.HTML)
+
+
+@dp.message(F.text == "ping")
+async def ping(message: Message):
+    await message.answer("<b>PONG</b>", parse_mode=ParseMode.HTML)
 
 
 @dp.message()
-async def echo_id(message: Message):
+async def message_info(message: Message):
     info = format_message(message.model_dump())
     await message.answer(info, parse_mode=ParseMode.HTML)
 
@@ -102,6 +121,7 @@ async def echo_id(message: Message):
 async def main():
     print("Бот запущен...")
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
