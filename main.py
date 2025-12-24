@@ -86,6 +86,18 @@ def format_message(message: dict) -> str:
             if author_signature:
                 lines.append(f"├ <b>Автор:</b> {author_signature}")
 
+        elif origin_type == "chat":
+            channel = forward_origin.get("sender_chat", {})
+            lines.append(f"├ <b>ID:</b> <code>{channel.get('id')}</code>")
+            lines.append(f"├ <b>Группа:</b> {channel.get('title', '(без названия)')}")
+
+            if channel.get('username'):
+                lines.append(f"├ <b>Username:</b> @{channel['username']}")
+
+            author_signature = forward_origin.get("author_signature")
+            if author_signature:
+                lines.append(f"├ <b>Автор:</b> {author_signature}")
+
     return "\n".join(lines)
 
 
